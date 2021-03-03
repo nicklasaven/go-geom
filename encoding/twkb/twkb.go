@@ -4,6 +4,7 @@
 package twkb
 
 import (
+	"fmt"
 	"encoding/binary"
 //	"fmt"
 	"io"
@@ -42,7 +43,7 @@ func Read(r io.ByteReader, opts ...wkbcommon.WKBOption) (geom.T, error) {
 	var t twkb 
 
 	t.readTWKBheader(r)
-
+	t.lastCoords = make([]int64, t.nDims)
 	layout := geom.NoLayout
 
 	if !t.hasZ && !t.hasM && t.nDims == 2{		
@@ -240,7 +241,7 @@ func (t *twkb)readTWKBheader(r io.ByteReader)(error){
 }
 
 type resbuf struct{
-data []byte
+data *[]byte
 }
 // Unmarshal unmrshals an arbitrary geometry from a []byte.
 func Unmarshal(data []byte, opts ...wkbcommon.WKBOption) (geom.T, error) {
@@ -254,8 +255,8 @@ func Write(buf resbuf,precisionXY byte,precisionZ byte, precisionM byte, g geom.
 
 	if g.Empty(){
 		buf.resize(2)
-		buf.data[0] = 0
-		buf.data[1] = 16
+		(*buf.data)[0] = 0
+		(*buf.data)[1] = 16
 		return nil
 	}
 
@@ -301,24 +302,33 @@ var err error
 	case geom.XY:
 		t.hasZ = false
 		t.hasM = false
+		t.nDims = 2
+		fmt.Printf("2D\n")
 	case geom.XYZ:
 		t.hasZ = true
 		t.zPrecision = precisionZ
 		t.hasM = false
+		t.nDims = 3
+		fmt.Printf("Has Z\n")
 	case geom.XYM:
 		t.hasZ = false
 		t.hasM = true
 		t.mPrecision = precisionM
+		t.nDims = 3
+		fmt.Printf("Has M\n")
 	case geom.XYZM:
 		t.hasZ = true
 		t.zPrecision = precisionZ
 		t.hasM = true
 		t.mPrecision = precisionM
+		t.nDims = 4
+
+		fmt.Printf("Has Z and M\n")
 	default:
 		return geom.ErrUnsupportedLayout(g.Layout())
 	}
 
-
+	t.lastCoords = make([]int64, t.nDims)
 	err = t.writeHeader(buf)
 	if err != nil{
 		return err
@@ -382,7 +392,7 @@ func (t twkb) writeWoHeader(buf resbuf,g geom.T)(error){
 func Marshal(g geom.T,precisionXY byte, precisionZ byte, precisionM byte, opts ...wkbcommon.WKBOption) ([]byte, error) {
 	var res []byte
 	
-	if err := Write(resbuf{data:res}, precisionXY, precisionZ, precisionM, g); err != nil {
+	if err := Write(resbuf{data:&res}, precisionXY, precisionZ, precisionM, g); err != nil {
 		return nil, err
 	}
 	return []byte(res), nil
@@ -391,40 +401,47 @@ func Marshal(g geom.T,precisionXY byte, precisionZ byte, precisionM byte, opts .
 
 func (t twkb) writeHeader(buf resbuf)(error){
 	
-	buf.resize(3)
-	
+	fmt.Printf("1: buf cap: %d, buf len: %d\n", cap(*buf.data), len(*buf.data))
+	buf.resize(2)
 	var firstByte byte 
 	firstByte &= byte(t.precision)
 	firstByte = firstByte<< 4	
 	firstByte |= byte(t.geomType)
 
-	buf.data[0] = firstByte
+	(*buf.data)[0] = firstByte
 
 	/*TODO add support for bbox, size id-list and empty*/
 	var secondByte byte = 0
 
 
 	var thirdByte byte = 0
+	
 	if t.hasZ || t.hasM{
-		secondByte &= 8 // we set the fourth bit indicating extended precision information byte
+		fmt.Printf("t.hasZ: %v, secondByte: %d, thirdByte: %d\n", t.hasZ,secondByte, thirdByte)
+		secondByte |= 8 // we set the fourth bit indicating extended precision information byte
 		var zbyte, mbyte byte
 		if t.hasZ{
-			zbyte := t.zPrecision << 2
+			zbyte = t.zPrecision << 2
 			zbyte |= 1
 		}
 		if t.hasM{
-			mbyte := t.mPrecision << 5
+			mbyte = t.mPrecision << 5
 			mbyte |= 2			
 		}
 		thirdByte = zbyte | mbyte
+
+		fmt.Printf("t.hasZ: %v, secondByte: %d,mbyte: %d, zbyte: %d, thirdByte: %d\n", t.hasZ,secondByte,mbyte, zbyte, thirdByte)
 	}
 
 	
-	buf.data[1] = secondByte
+	(*buf.data)[1] = secondByte
 	if thirdByte > 0{
-		buf.data[2] = thirdByte	
+		buf.resize(1)
+		fmt.Printf("Writing third byte")
+		(*buf.data)[2] = thirdByte	
 	}
 	
+	fmt.Printf("2: buf cap: %d, buf len: %d\n", cap(*buf.data), len(*buf.data))
 	return nil	
 }
 
@@ -530,13 +547,13 @@ func readVarint(r io.ByteReader)(int64, error){
 
 // WriteFlatCoords0 writes flat coordinates 0.
 func (t twkb) writeFlatCoords0(buf resbuf, coords []float64) error {
-		t.writeFloatArray(buf, coords)
+		t.writeFloatArray(buf, coords, false)
 	return nil
 }
 
 // WriteFlatCoords1 writes flat coordinates 1.
 func (t twkb) writeFlatCoords1(buf resbuf, coords []float64) error {	
-	t.writeFloatArray(buf, coords)
+	t.writeFloatArray(buf, coords, true)
 	return nil}
 
 // WriteFlatCoords2 writes flat coordinates 2.
@@ -556,10 +573,13 @@ func (t twkb) writeFlatCoords2(buf resbuf,  flatCoords []float64, ends []int) er
 
 
 
-func (t twkb)writeFloatArray(buf resbuf, coords []float64){
+func (t twkb)writeFloatArray(buf resbuf, coords []float64, writeNumPoints bool){
 
 	nPoints := uint64(len(coords)/t.nDims)
-	buf.appendUvarint(uint64(nPoints))
+
+	if writeNumPoints{
+		buf.appendUvarint(uint64(nPoints))
+	}
 
 	nDims := t.nDims
 	for i:=uint64(0);i<nPoints;i++{
@@ -578,7 +598,7 @@ func (s resbuf)appendVarint(val int64){
 	n := binary.PutVarint(buf, val)	
 	
 	m := s.resize(n)
-	copy(s.data[m:m+n], buf)
+	copy((*s.data)[m:m+n], buf)
 //	*dst = append(*dst, buf[0:n] ...)
 }
 
@@ -586,7 +606,7 @@ func (s resbuf)appendUvarint(val uint64){
 	buf := make([]byte, binary.MaxVarintLen64)	
 	n := binary.PutUvarint(buf, val)	
 	m := s.resize(n)	
-	copy(s.data[m:m+n], buf)
+	copy((*s.data)[m:m+n], buf)
 	
 	
 //	*dst = append(*dst, buf[0:n] ...)
@@ -600,22 +620,28 @@ func appendUVarint(dst *[]byte, val uint64){
 */
 
 func (s resbuf)resize(n int)(int){
+	fmt.Printf("resize1: buf cap: %d, buf len: %d\n", cap(*s.data), len(*s.data))
 	var res []byte
-	m := len(s.data)
-	if cap(s.data) < m + n {
+	m := len(*s.data)
+	if cap(*s.data) < m + n {
 		var newSize int
-		if cap(s.data) == 0{
+		if cap(*s.data) == 0{
 			newSize = 16
+		}else{
+			newSize = m
 		}
 		for newSize < m+n{
 			newSize *= 2
+			fmt.Printf("newSize: %d, m+n: %d\n", newSize, m+n)
 		}
 
 		res = make([]byte,m+n, newSize)
-		copy(res, s.data[:m])
-		s.data = res
+		copy(res, (*s.data)[:m])
+		*s.data = res
 		return m
 	}
-	s.data = s.data[0:m+n]
+	(*s.data) = (*s.data)[0:m+n]
+	
+	fmt.Printf("resize2: buf cap: %d, buf len: %d\n", cap(*s.data), len(*s.data))
 	return m
 }

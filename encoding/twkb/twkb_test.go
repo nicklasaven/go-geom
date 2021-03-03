@@ -1,7 +1,7 @@
 package twkb
-/*
+
 import (
-	"encoding/binary"
+//	"encoding/binary"
 	"fmt"
 	"testing"
 
@@ -10,40 +10,27 @@ import (
 	"github.com/twpayne/go-geom"
 	"github.com/twpayne/go-geom/encoding/wkbcommon"
 	"github.com/twpayne/go-geom/internal/geomtest"
-	"github.com/twpayne/go-geom/internal/testdata"
+//	"github.com/twpayne/go-geom/internal/testdata"
 )
 
-func test(t *testing.T, g geom.T, xdr, ndr []byte, opts ...wkbcommon.WKBOption) {
-	if xdr != nil {
-		t.Run("xdr", func(t *testing.T) {
+func test(t *testing.T, g geom.T, precision, twkb []byte, opts ...wkbcommon.WKBOption) {
+
+		t.Run("twkb", func(t *testing.T) {
 			t.Run("unmarshal", func(t *testing.T) {
-				got, err := Unmarshal(xdr, opts...)
+				got, err := Unmarshal(twkb, opts...)
 				require.NoError(t, err)
 				require.Equal(t, g, got)
 			})
 
 			t.Run("marshal", func(t *testing.T) {
-				got, err := Marshal(g, XDR, opts...)
+				got, err := Marshal(g, precision[0], precision[1], precision[2], opts...)
 				require.NoError(t, err)
-				require.Equal(t, xdr, got)
+				require.Equal(t, twkb, got)
 			})
 		})
-	}
-	if ndr != nil {
-		t.Run("ndr", func(t *testing.T) {
-			t.Run("unmarshal", func(t *testing.T) {
-				got, err := Unmarshal(ndr, opts...)
-				require.NoError(t, err)
-				require.Equal(t, g, got)
-			})
 
-			t.Run("marshal", func(t *testing.T) {
-				got, err := Marshal(g, NDR, opts...)
-				require.NoError(t, err)
-				require.Equal(t, ndr, got)
-			})
-		})
-	}
+
+/*
 	t.Run("scan", func(t *testing.T) {
 		switch g := g.(type) {
 		case *geom.Point:
@@ -146,15 +133,17 @@ func test(t *testing.T, g geom.T, xdr, ndr []byte, opts ...wkbcommon.WKBOption) 
 			}
 		}
 	})
+	*/
 }
 
 func Test(t *testing.T) {
 	for _, tc := range []struct {
 		g    geom.T
 		opts []wkbcommon.WKBOption
-		xdr  []byte
-		ndr  []byte
+		precision []byte
+		twkb  []byte
 	}{
+/*
 		{
 			g:    geom.NewPointEmpty(geom.XY),
 			opts: []wkbcommon.WKBOption{wkbcommon.WKBOptionEmptyPointHandling(wkbcommon.EmptyPointHandlingNaN)},
@@ -185,91 +174,92 @@ func Test(t *testing.T) {
 			xdr:  geomtest.MustHexDecode("00000000070000000100000000017ff80000000000007ff8000000000000"),
 			ndr:  geomtest.MustHexDecode("0107000000010000000101000000000000000000f87f000000000000f87f"),
 		},
+*/
 		{
 			g:   geom.NewPoint(geom.XY).MustSetCoords(geom.Coord{1, 2}),
-			xdr: geomtest.MustHexDecode("00000000013ff00000000000004000000000000000"),
-			ndr: geomtest.MustHexDecode("0101000000000000000000f03f0000000000000040"),
+			precision: []byte{0,0,0},
+			twkb: geomtest.MustHexDecode("01000204"),
 		},
+
 		{
 			g:   geom.NewPoint(geom.XYZ).MustSetCoords(geom.Coord{1, 2, 3}),
-			xdr: geomtest.MustHexDecode("00000003e93ff000000000000040000000000000004008000000000000"),
-			ndr: geomtest.MustHexDecode("01e9030000000000000000f03f00000000000000400000000000000840"),
+			precision: []byte{0,0,0},
+			twkb: geomtest.MustHexDecode("010801020406"),
 		},
 		{
 			g:   geom.NewPoint(geom.XYM).MustSetCoords(geom.Coord{1, 2, 3}),
-			xdr: geomtest.MustHexDecode("00000007d13ff000000000000040000000000000004008000000000000"),
-			ndr: geomtest.MustHexDecode("01d1070000000000000000f03f00000000000000400000000000000840"),
+			precision: []byte{0,0,0},
+			twkb: geomtest.MustHexDecode("010802020406"),
 		},
 		{
 			g:   geom.NewPoint(geom.XYZM).MustSetCoords(geom.Coord{1, 2, 3, 4}),
-			xdr: geomtest.MustHexDecode("0000000bb93ff0000000000000400000000000000040080000000000004010000000000000"),
-			ndr: geomtest.MustHexDecode("01b90b0000000000000000f03f000000000000004000000000000008400000000000001040"),
+			precision: []byte{0,0,0},
+			twkb: geomtest.MustHexDecode("01080302040608"),
 		},
 		{
 			g:   geom.NewLineString(geom.XY).MustSetCoords([]geom.Coord{{1, 2}, {3, 4}}),
-			xdr: geomtest.MustHexDecode("0000000002000000023ff0000000000000400000000000000040080000000000004010000000000000"),
-			ndr: geomtest.MustHexDecode("010200000002000000000000000000f03f000000000000004000000000000008400000000000001040"),
+			precision: []byte{0,0,0},
+			twkb: geomtest.MustHexDecode("02000202040404"),
 		},
 		{
 			g:   geom.NewLineString(geom.XYZ).MustSetCoords([]geom.Coord{{1, 2, 3}, {4, 5, 6}}),
-			xdr: geomtest.MustHexDecode("00000003ea000000023ff000000000000040000000000000004008000000000000401000000000000040140000000000004018000000000000"),
-			ndr: geomtest.MustHexDecode("01ea03000002000000000000000000f03f00000000000000400000000000000840000000000000104000000000000014400000000000001840"),
+			precision: []byte{0,0,0},
+			twkb: geomtest.MustHexDecode("02080102020406060606"),
 		},
 		{
 			g:   geom.NewLineString(geom.XYM).MustSetCoords([]geom.Coord{{1, 2, 3}, {4, 5, 6}}),
-			xdr: geomtest.MustHexDecode("00000007d2000000023ff000000000000040000000000000004008000000000000401000000000000040140000000000004018000000000000"),
-			ndr: geomtest.MustHexDecode("01d207000002000000000000000000f03f00000000000000400000000000000840000000000000104000000000000014400000000000001840"),
+			precision: []byte{0,0,0},
+			twkb: geomtest.MustHexDecode("02080202020406060606"),
 		},
 		{
 			g:   geom.NewLineString(geom.XYZM).MustSetCoords([]geom.Coord{{1, 2, 3, 4}, {5, 6, 7, 8}}),
-			xdr: geomtest.MustHexDecode("0000000bba000000023ff000000000000040000000000000004008000000000000401000000000000040140000000000004018000000000000401c0000000000004020000000000000"),
-			ndr: geomtest.MustHexDecode("01ba0b000002000000000000000000f03f000000000000004000000000000008400000000000001040000000000000144000000000000018400000000000001c400000000000002040"),
+			precision: []byte{0,0,0},
+			twkb: geomtest.MustHexDecode("020803020204060808080808"),
 		},
 		{
 			g:   geom.NewPolygon(geom.XY).MustSetCoords([][]geom.Coord{{{1, 2}, {3, 4}, {5, 6}, {1, 2}}}),
-			xdr: geomtest.MustHexDecode("000000000300000001000000043ff0000000000000400000000000000040080000000000004010000000000000401400000000000040180000000000003ff00000000000004000000000000000"),
-			ndr: geomtest.MustHexDecode("01030000000100000004000000000000000000f03f00000000000000400000000000000840000000000000104000000000000014400000000000001840000000000000f03f0000000000000040"),
+			precision: []byte{0,0,0},
+			twkb: geomtest.MustHexDecode("030001040204040404040707"),
 		},
 		{
 			g:   geom.NewPolygon(geom.XYZ).MustSetCoords([][]geom.Coord{{{1, 2, 3}, {4, 5, 6}, {7, 8, 9}, {1, 2, 3}}}),
-			xdr: geomtest.MustHexDecode("00000003eb00000001000000043ff000000000000040000000000000004008000000000000401000000000000040140000000000004018000000000000401c000000000000402000000000000040220000000000003ff000000000000040000000000000004008000000000000"),
-			ndr: geomtest.MustHexDecode("01eb0300000100000004000000000000000000f03f000000000000004000000000000008400000000000001040000000000000144000000000000018400000000000001c4000000000000020400000000000002240000000000000f03f00000000000000400000000000000840"),
+			precision: []byte{0,0,0},
+			twkb: geomtest.MustHexDecode("03080101040204060606060606060b0b0b"),
 		},
 		{
 			g:   geom.NewPolygon(geom.XYM).MustSetCoords([][]geom.Coord{{{1, 2, 3}, {4, 5, 6}, {7, 8, 9}, {1, 2, 3}}}),
-			xdr: geomtest.MustHexDecode("00000007d300000001000000043ff000000000000040000000000000004008000000000000401000000000000040140000000000004018000000000000401c000000000000402000000000000040220000000000003ff000000000000040000000000000004008000000000000"),
-			ndr: geomtest.MustHexDecode("01d30700000100000004000000000000000000f03f000000000000004000000000000008400000000000001040000000000000144000000000000018400000000000001c4000000000000020400000000000002240000000000000f03f00000000000000400000000000000840"),
+			precision: []byte{0,0,0},
+			twkb: geomtest.MustHexDecode("03080201040204060606060606060b0b0b"),
 		},
 		{
 			g:   geom.NewPolygon(geom.XYZM).MustSetCoords([][]geom.Coord{{{1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {1, 2, 3, 4}}}),
-			xdr: geomtest.MustHexDecode("0000000bbb00000001000000043ff000000000000040000000000000004008000000000000401000000000000040140000000000004018000000000000401c000000000000402000000000000040220000000000004024000000000000402600000000000040280000000000003ff0000000000000400000000000000040080000000000004010000000000000"),
-			ndr: geomtest.MustHexDecode("01bb0b00000100000004000000000000000000f03f000000000000004000000000000008400000000000001040000000000000144000000000000018400000000000001c4000000000000020400000000000002240000000000000244000000000000026400000000000002840000000000000f03f000000000000004000000000000008400000000000001040"),
+			precision: []byte{0,0,0},
+			twkb: geomtest.MustHexDecode("03080301040204060808080808080808080f0f0f0f"),
 		},
-		{
+/*		{
 			g:   geom.NewMultiPoint(geom.XY).MustSetCoords([]geom.Coord{{1, 2}, {3, 4}}),
-			xdr: geomtest.MustHexDecode("00000000040000000200000000013ff00000000000004000000000000000000000000140080000000000004010000000000000"),
-			ndr: geomtest.MustHexDecode("0104000000020000000101000000000000000000f03f0000000000000040010100000000000000000008400000000000001040"),
+			precision: []byte{0,0,0},
+			twkb: geomtest.MustHexDecode("04000202040404"),
 		},
 		{
 			g:   geom.NewMultiPoint(geom.XYZ).MustSetCoords([]geom.Coord{{1, 2, 3}, {4, 5, 6}}),
-			xdr: geomtest.MustHexDecode("00000003ec0000000200000003e93ff00000000000004000000000000000400800000000000000000003e9401000000000000040140000000000004018000000000000"),
-			ndr: geomtest.MustHexDecode("01ec0300000200000001e9030000000000000000f03f0000000000000040000000000000084001e9030000000000000000104000000000000014400000000000001840"),
+			precision: []byte{0,0,0},
+			twkb: geomtest.MustHexDecode("04080102020406060606"),
 		},
 		{
 			g:   geom.NewMultiPoint(geom.XYM).MustSetCoords([]geom.Coord{{1, 2, 3}, {4, 5, 6}}),
-			xdr: geomtest.MustHexDecode("00000007d40000000200000007d13ff00000000000004000000000000000400800000000000000000007d1401000000000000040140000000000004018000000000000"),
-			ndr: geomtest.MustHexDecode("01d40700000200000001d1070000000000000000f03f0000000000000040000000000000084001d1070000000000000000104000000000000014400000000000001840"),
+			precision: []byte{0,0,0},
+			twkb: geomtest.MustHexDecode("04080202020406060606"),
 		},
 		{
 			g:   geom.NewMultiPoint(geom.XYZM).MustSetCoords([]geom.Coord{{1, 2, 3, 4}, {5, 6, 7, 8}}),
-			xdr: geomtest.MustHexDecode("0000000bbc000000020000000bb93ff00000000000004000000000000000400800000000000040100000000000000000000bb940140000000000004018000000000000401c0000000000004020000000000000"),
-			ndr: geomtest.MustHexDecode("01bc0b00000200000001b90b0000000000000000f03f00000000000000400000000000000840000000000000104001b90b0000000000000000144000000000000018400000000000001c400000000000002040"),
+			precision: []byte{0,0,0},
+			twkb: geomtest.MustHexDecode("040803020204060808080808"),
 		},
 		{
 			g:    geom.NewMultiPoint(geom.XY).MustSetCoords([]geom.Coord{nil, {1, 2}, {3, 4}}),
-			opts: []wkbcommon.WKBOption{wkbcommon.WKBOptionEmptyPointHandling(wkbcommon.EmptyPointHandlingNaN)},
-			xdr:  geomtest.MustHexDecode("00000000040000000300000000017ff80000000000007ff800000000000000000000013ff00000000000004000000000000000000000000140080000000000004010000000000000"),
-			ndr:  geomtest.MustHexDecode("0104000000030000000101000000000000000000f87f000000000000f87f0101000000000000000000f03f0000000000000040010100000000000000000008400000000000001040"),
+			precision: []byte{0,0,0},
+			twkb: geomtest.MustHexDecode("0104000000030000000101000000000000000000f87f000000000000f87f0101000000000000000000f03f0000000000000040010100000000000000000008400000000000001040"),
 		},
 		{
 			g:   geom.NewGeometryCollection(),
@@ -285,12 +275,13 @@ func Test(t *testing.T) {
 			xdr: geomtest.MustHexDecode("0000000007000000030000000001c053d7abbf360b554045d2a5078be57c000000000200000005c053d7bb2a0d19c44045d29b796daa28c053d7b5db841fb54045d29f26a15479c053d7b1209edbf94045d2a1af11d0e3c053d7acf8868efb4045d2a4484944edc053d7abbf360b554045d2a5078be57c000000000200000002c053d7abbf360b554045d2a5078be57cc053d7aae586d7f64045d2a09cc319c6"),
 			ndr: geomtest.MustHexDecode("0107000000030000000101000000550B36BFABD753C07CE58B07A5D24540010200000005000000C4190D2ABBD753C028AA6D799BD24540B51F84DBB5D753C07954A1269FD24540F9DB9E20B1D753C0E3D011AFA1D24540FB8E86F8ACD753C0ED444948A4D24540550B36BFABD753C07CE58B07A5D24540010200000002000000550B36BFABD753C07CE58B07A5D24540F6D786E5AAD753C0C619C39CA0D24540"),
 		},
+*/
 	} {
-		t.Run(fmt.Sprintf("ndr:%s", tc.ndr), func(t *testing.T) {
-			test(t, tc.g, tc.xdr, tc.ndr, tc.opts...)
+		t.Run(fmt.Sprintf("twkb:%s", tc.twkb), func(t *testing.T) {
+			test(t, tc.g, tc.precision,tc.twkb, tc.opts...)
 		})
 	}
-
+	/*
 	t.Run("errors when encoding empty point WKBs by default", func(t *testing.T) {
 		_, err := Marshal(geom.NewPointEmpty(geom.XY), binary.LittleEndian)
 		matchStr := "cannot encode empty Point in WKB"
@@ -306,8 +297,9 @@ func Test(t *testing.T) {
 			t.Errorf("expected error matching %s, got %#v", matchStr, err)
 		}
 	})
+*/
 }
-
+/*
 func TestRandom(t *testing.T) {
 	for _, tc := range testdata.Random {
 		test(t, tc.G, nil, tc.WKB)
