@@ -17,13 +17,13 @@ func test(t *testing.T, g geom.T, precision, twkb []byte, opts ...wkbcommon.WKBO
 
 		t.Run("twkb", func(t *testing.T) {
 			t.Run("unmarshal", func(t *testing.T) {
-				got, err := Unmarshal(twkb, opts...)
+				got, err := Unmarshal(twkb)
 				require.NoError(t, err)
 				require.Equal(t, g, got)
 			})
 
 			t.Run("marshal", func(t *testing.T) {
-				got, err := Marshal(g, precision[0], precision[1], precision[2], opts...)
+				got, err := Marshal(g, precision[0], precision[1], precision[2])
 				require.NoError(t, err)
 				require.Equal(t, twkb, got)
 			})
@@ -143,42 +143,53 @@ func Test(t *testing.T) {
 		precision []byte
 		twkb  []byte
 	}{
-/*
+
 		{
 			g:    geom.NewPointEmpty(geom.XY),
-			opts: []wkbcommon.WKBOption{wkbcommon.WKBOptionEmptyPointHandling(wkbcommon.EmptyPointHandlingNaN)},
-			xdr:  geomtest.MustHexDecode("00000000017ff80000000000007ff8000000000000"),
-			ndr:  geomtest.MustHexDecode("0101000000000000000000f87f000000000000f87f"),
+			precision: []byte{0,0,0},
+			twkb:  geomtest.MustHexDecode("0110"),
 		},
 		{
 			g:    geom.NewPointEmpty(geom.XYM),
-			opts: []wkbcommon.WKBOption{wkbcommon.WKBOptionEmptyPointHandling(wkbcommon.EmptyPointHandlingNaN)},
-			xdr:  geomtest.MustHexDecode("00000007d17ff80000000000007ff80000000000007ff8000000000000"),
-			ndr:  geomtest.MustHexDecode("01d1070000000000000000f87f000000000000f87f000000000000f87f"),
+			precision: []byte{0,0,0},
+			twkb:  geomtest.MustHexDecode("011802"),
 		},
 		{
 			g:    geom.NewPointEmpty(geom.XYZ),
-			opts: []wkbcommon.WKBOption{wkbcommon.WKBOptionEmptyPointHandling(wkbcommon.EmptyPointHandlingNaN)},
-			xdr:  geomtest.MustHexDecode("00000003e97ff80000000000007ff80000000000007ff8000000000000"),
-			ndr:  geomtest.MustHexDecode("01e9030000000000000000f87f000000000000f87f000000000000f87f"),
+			precision: []byte{0,0,0},
+			twkb:  geomtest.MustHexDecode("011801"),
 		},
 		{
 			g:    geom.NewPointEmpty(geom.XYZM),
-			opts: []wkbcommon.WKBOption{wkbcommon.WKBOptionEmptyPointHandling(wkbcommon.EmptyPointHandlingNaN)},
-			xdr:  geomtest.MustHexDecode("0000000bb97ff80000000000007ff80000000000007ff80000000000007ff8000000000000"),
-			ndr:  geomtest.MustHexDecode("01b90b0000000000000000f87f000000000000f87f000000000000f87f000000000000f87f"),
+			precision: []byte{0,0,0},
+			twkb:  geomtest.MustHexDecode("011803"),
 		},
-		{
+/*		{
 			g:    geom.NewGeometryCollection().MustPush(geom.NewPointEmpty(geom.XY)),
-			opts: []wkbcommon.WKBOption{wkbcommon.WKBOptionEmptyPointHandling(wkbcommon.EmptyPointHandlingNaN)},
-			xdr:  geomtest.MustHexDecode("00000000070000000100000000017ff80000000000007ff8000000000000"),
-			ndr:  geomtest.MustHexDecode("0107000000010000000101000000000000000000f87f000000000000f87f"),
+			precision: []byte{0,0,0},
+			twkb:  geomtest.MustHexDecode("011802"),
 		},
 */
 		{
 			g:   geom.NewPoint(geom.XY).MustSetCoords(geom.Coord{1, 2}),
 			precision: []byte{0,0,0},
 			twkb: geomtest.MustHexDecode("01000204"),
+		},
+
+		{
+			g:   geom.NewPoint(geom.XY).MustSetCoords(geom.Coord{1, 2}),
+			precision: []byte{1,0,0},
+			twkb: geomtest.MustHexDecode("21001428"),
+		},
+		{
+			g:   geom.NewPoint(geom.XYZ).MustSetCoords(geom.Coord{1.2, 2.3, 3.45}),
+			precision: []byte{1,2,0},
+			twkb: geomtest.MustHexDecode("210809182eb205"),
+		},
+		{
+			g:   geom.NewPoint(geom.XYM).MustSetCoords(geom.Coord{1.2, 2.3, 3.456}),
+			precision: []byte{1,0,3},
+			twkb: geomtest.MustHexDecode("210862182e8036"),
 		},
 
 		{
@@ -236,7 +247,7 @@ func Test(t *testing.T) {
 			precision: []byte{0,0,0},
 			twkb: geomtest.MustHexDecode("03080301040204060808080808080808080f0f0f0f"),
 		},
-/*		{
+		{
 			g:   geom.NewMultiPoint(geom.XY).MustSetCoords([]geom.Coord{{1, 2}, {3, 4}}),
 			precision: []byte{0,0,0},
 			twkb: geomtest.MustHexDecode("04000202040404"),
@@ -256,24 +267,26 @@ func Test(t *testing.T) {
 			precision: []byte{0,0,0},
 			twkb: geomtest.MustHexDecode("040803020204060808080808"),
 		},
-		{
+
+/*		{
 			g:    geom.NewMultiPoint(geom.XY).MustSetCoords([]geom.Coord{nil, {1, 2}, {3, 4}}),
 			precision: []byte{0,0,0},
 			twkb: geomtest.MustHexDecode("0104000000030000000101000000000000000000f87f000000000000f87f0101000000000000000000f03f0000000000000040010100000000000000000008400000000000001040"),
 		},
-		{
+			{
 			g:   geom.NewGeometryCollection(),
 			xdr: geomtest.MustHexDecode("000000000700000000"),
 			ndr: geomtest.MustHexDecode("010700000000000000"),
 		},
+		
 		{
 			g: geom.NewGeometryCollection().MustPush(
 				geom.NewPoint(geom.XY).MustSetCoords(geom.Coord{-79.3698576, 43.6456613}),
 				geom.NewLineString(geom.XY).MustSetCoords([]geom.Coord{{-79.3707986, 43.6453697}, {-79.3704747, 43.6454819}, {-79.370186, 43.6455592}, {-79.3699323, 43.6456385}, {-79.3698576, 43.6456613}}),
 				geom.NewLineString(geom.XY).MustSetCoords([]geom.Coord{{-79.3698576, 43.6456613}, {-79.3698057, 43.6455265}}),
 			),
-			xdr: geomtest.MustHexDecode("0000000007000000030000000001c053d7abbf360b554045d2a5078be57c000000000200000005c053d7bb2a0d19c44045d29b796daa28c053d7b5db841fb54045d29f26a15479c053d7b1209edbf94045d2a1af11d0e3c053d7acf8868efb4045d2a4484944edc053d7abbf360b554045d2a5078be57c000000000200000002c053d7abbf360b554045d2a5078be57cc053d7aae586d7f64045d2a09cc319c6"),
-			ndr: geomtest.MustHexDecode("0107000000030000000101000000550B36BFABD753C07CE58B07A5D24540010200000005000000C4190D2ABBD753C028AA6D799BD24540B51F84DBB5D753C07954A1269FD24540F9DB9E20B1D753C0E3D011AFA1D24540FB8E86F8ACD753C0ED444948A4D24540550B36BFABD753C07CE58B07A5D24540010200000002000000550B36BFABD753C07CE58B07A5D24540F6D786E5AAD753C0C619C39CA0D24540"),
+			precision: []byte{7,0,0},
+			twkb: geomtest.MustHexDecode("e70003e1009f84f7f405cab29ea003e20005a397f8f40582859ea003ce32c4118e2d8a0cd227b20cd60bc803e200029f84f7f405cab29ea0038e088715"),
 		},
 */
 	} {
@@ -308,7 +321,7 @@ func TestRandom(t *testing.T) {
 
 func BenchmarkUnmarshal(b *testing.B) {
 	for n := 0; n < b.N; n++ {
-		for _, tc := range testdata.Random {
+		for _, tc := range testdata.Random {/*
 			if _, err := Unmarshal(tc.WKB); err != nil {
 				b.Errorf("unmarshal error %v", err)
 			}
